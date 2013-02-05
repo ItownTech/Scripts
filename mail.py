@@ -12,7 +12,7 @@ from email import encoders
 import os,sys
 
 
-server = {'host':'smtp.163.com','user':'qdlxs2001','passwd':'Lukin262865'}
+server = {'host':'smtp.163.com','user':'qdlxs2001','passwd':'123456'}
 fro = 'qdlxs2001@163.com'
 # 收件人
 to = sys.argv[1].split(',')
