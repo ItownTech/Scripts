@@ -1,0 +1,23 @@
+# !/bin/sh
+
+if [ "$2" = "" ]; then
+    INAME="*.cue"
+else
+    INAME="$2"
+fi
+
+if [ "$3" = "" ]; then
+    FROM="GBK"
+else
+    FROM="$3"
+fi
+
+if [ "$4" = "" ]; then
+    TO="UTF-8"
+else
+    TO="$4"
+fi
+
+touch iconv.tmp && find "$1" -iname "$INAME" -exec iconv --verbose -f "$FROM" -t "$TO" '{}' -o iconv.tmp \; -exec mv iconv.tmp '{}' \;
+
+rm -fr iconv.tmp

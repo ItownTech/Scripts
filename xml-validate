@@ -1,0 +1,105 @@
+#!/usr/bin/php
+<?php
+    if (!isset($argv[1]) || !is_file($argv[1])) {
+        printf("xml-validate: missing operand\nTry `xml-validate --help' for more information.\n", $argv[0]);
+
+        return;
+    }
+
+    $pattern = '{
+        ^(
+            (?:<(\w++)[^>]*+(?<!/)>(?1)</\2>
+              |[^<>]++
+              |<\w[^>]*+(?<=/)>
+              |<!--.*?-->
+              |<!\[CDATA\[.*?]]>
+              |<\?.*?\?>
+              |<![A-Z].*?>
+              |<script\b[^>]*>.*?</script>
+            )*+
+        )$
+    }isx';
+    $content = file_get_contents($argv[1]);
+
+    if (preg_match($pattern, $content)) {
+        return printf("All xml tag closed correct.\n");
+    }
+
+    for ($i = 0, $l = strlen($content), $stack = array(); $i < $l;) {
+        $subject = substr($content, $i);
+        // script tag
+        if (preg_match('/^(<script\b[^>]*>)(.*?)(<\/script>)/is', $subject, $matches)) {
+            $i += strlen($matches[0]);
+
+            $prefix = str_repeat('  ', count($stack));
+            if (strlen($matches[2])) {
+                $out[] = $prefix.$matches[1];
+                $out[] = preg_replace('/^/m', '  '.$prefix, trim($matches[2]));
+                $out[] = $prefix.$matches[3];
+            } else {
+                $out[] = $prefix.$matches[1].$matches[3];
+            }
+        }
+        // tag lead
+        else if (preg_match('/^<(\w++)[^>]*+(?<!\/)>/is', $subject, $matches)) {
+            $i += strlen($matches[0]);
+
+            $prefix = str_repeat('  ', count($stack));
+            $out[] = $prefix.$matches[0];
+            $stack[] = $matches[1];
+        }
+        // tag tail
+        else if (preg_match('/^<\/(\w++)>/is', $subject, $matches)) {
+            $i += strlen($matches[0]);
+
+            if (count($stack) > 0 && $matches[1] == $stack[count($stack)-1]) {
+                array_pop($stack);
+
+                $prefix = str_repeat('  ', count($stack));
+                $out[] = $prefix.$matches[0];
+            } else {
+                while (count($out) && !preg_match('/^ {'.(2*count($stack)-2).'}(?! )/', $out[count($out)-1])) {
+                    array_pop($out);
+                }
+
+                $out[] = str_repeat('-', 2*count($stack)-2).'^';
+                $out[] = '';
+                $out[] = "E: tag not close corrected.";
+                break;
+            }
+        }
+        // plain text
+        else if (preg_match('/^[^<>]++/is', $subject, $matches)) {
+            $i += strlen($matches[0]);
+
+            $prefix = str_repeat('  ', count($stack));
+            if (!preg_match('/^\s++$/', $matches[0])) {
+                $out[] = $prefix.str_replace("\n", '\n', $matches[0]);
+            }
+        }
+        // closed tag
+        // xml defination
+        // CDATA defination
+        // comment and so on...
+        else if (preg_match('/^<\w[^>]*+(?<=\/)>/is', $subject, $matches) ||
+                preg_match('/^<\?.*?\?>/is', $subject, $matches) ||
+                preg_match('/^<![A-Z].*?>/is', $subject, $matches) ||
+                preg_match('/^\[CDATA\[.*?]]>/is', $subject, $matches)) {
+            $i += strlen($matches[0]);
+            $prefix = str_repeat('  ', count($stack));
+            $out[] = $prefix.trim($matches[0]);
+        }
+        else if (preg_match('/^<!--.*?-->/is', $subject, $matches)) {
+            $i += strlen($matches[0]);
+            $prefix = str_repeat('  ', count($stack));
+            $out[] = preg_replace('/^/m', '  '.$prefix, trim($matches[0]));
+        }
+        // other element
+        else {
+            printf("%s\n", $subject);
+            die(">>>\n");
+        }
+    }
+
+    printf("%s\n", implode("\n", $out));
+?>

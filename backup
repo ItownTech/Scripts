@@ -1,0 +1,31 @@
+#!/bin/sh
+
+[ "`whoami`" = root ] || exec sudo "$0" "$@"
+
+# 脚本所在目录
+cwd=$(cd "$(dirname "$0")"; pwd);
+
+# 备份存放目录
+if [ "$1" = "" ]; then
+    #folder="$HOME/Backup";
+    folder="/home/lukin/Backup";
+else
+    folder=$1;
+fi
+
+# 后缀名
+if [ "$2" = "" ]; then
+    suffix="tar.gz";
+else
+    suffix=$2;
+fi
+
+# 备份文件名
+filename=`date +%Y%m%d_%H%M%S`".$suffix";
+
+# 执行备份
+tar -acvpf "$folder/$filename" --exclude="$folder" --exclude-from="$cwd"/excludes /;
+
+# 输出提示
+echo "*************************** Backup Success ***************************";
+echo "Backup File: $folder/$filename";

@@ -1,0 +1,3 @@
+#!/bin/sh
+
+[ "`whoami`" = root ] || exec sudo netstat -tulpn "$@"

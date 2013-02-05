@@ -1,0 +1,11 @@
+# !/bin/sh
+
+if [ "$1" = "" ]; then
+	echo "Params can't be empty!"
+else
+	for i in $(ps -ef | grep "$1" | grep -v "grep" | grep -v "avkill" | awk '{print $2}')
+	do 
+		kill -9 $i
+		echo "kill -9 " $i
+	done
+fi

@@ -1,0 +1,25 @@
+# !/bin/sh
+
+# Check for proper priveliges
+[ "`whoami`" = root ] || exec sudo "$0" "$@"
+
+# Test if the axel is installed
+if [ ! -x /usr/bin/mid3iconv ]
+then echo "python-mutagen is not installed, perform this?(y/n)"
+    read ops
+    case $ops in
+         y) if apt-get install python-mutagen -y --force-yes
+               then echo "python-mutagen installed"
+            else echo "unable to install the python-mutagen. you are using sudo?" ; exit
+            fi ;;
+         n) echo "not possible usage mid3iconvs" ; exit ;;
+    esac
+fi
+
+if [ "$2" = "" ]; then
+    INAME="*.mp3"
+else
+    INAME="$2"
+fi
+
+find "$1" -iname "$INAME" -execdir mid3iconv -e GBK {} \; 

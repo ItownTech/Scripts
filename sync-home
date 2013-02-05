@@ -1,0 +1,5 @@
+#!/bin/sh
+
+cd /home/lukin/.bin/
+
+rsync -azvt --include-from="sync-home-include" --exclude-from="sync-home-ignore" "/home/lukin/" -e ssh "lukin@lukin-pc:/home/lukin/"

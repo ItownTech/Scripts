@@ -1,0 +1,31 @@
+#!/usr/bin/php -q
+<?php
+function strip_utf8_bom($data) {
+    if (substr($data, 0, 3) == "\xEF\xBB\xBF")
+        return substr_replace($data, '', 0, 3);
+    return $data;
+}
+
+$path = getcwd();run($path);
+function run($path) {
+if ($dh = opendir($path)) {
+    while (false !== ($file=readdir($dh))) {
+        if ($file != '.' && $file != '..') {
+            $file_path = $path.'/'.$file; var_dump($file_path);
+            if (is_file($file_path)) {
+		$content = file_get_contents($file_path);
+		$new_content = strip_utf8_bom($content);
+		file_put_contents($file_path, $new_content);
+		$len1 = strlen($content);
+		$len2 = strlen($new_content);
+		if ($len1 != $len2) {
+		    printf("%s\t%s==>%s\n", $file_path,$len1, $len2);
+		}
+	    } else {
+		run($file_path);
+	    }
+        }
+    }
+    closedir($dh);
+}
+}

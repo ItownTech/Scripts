@@ -1,0 +1,78 @@
+#!/usr/bin/php -q
+<?php
+/**
+ * 搜狗拼音输入法，细胞词库(.scel)转.Txt
+ *
+ * 需要 iconv 函数支持
+ *
+ * @author Lukin <my@lukin.cn>
+ */
+
+$abs_path = getcwd();
+
+if (count($argv)==2) {
+    $files = glob($argv[1]);
+    foreach($files as $file) {
+        scel2txt($file);
+    }
+} else {
+    $files = $argv;
+    array_shift($files);
+    foreach($files as $file) {
+        scel2txt($file);
+    }
+}
+
+function scel2txt($filename) {
+    global $abs_path;
+    printf("开始处理 %s ...\n", $filename);
+    $fp     = fopen($abs_path.'/'.$filename,'rb');
+    $fstat  = fstat($fp);
+    $fsize  = $fstat['size'];
+    $mask   = fread($fp,8); //\x40\x15\x00\x00\x44\x43\x53\x01
+    $offset = 0;
+
+    if ($mask[4]=="\x44")
+        $offset = 0x2628;
+    elseif ($mask[4]=="\x45")
+        $offset = 0x26c4;
+
+    $title   = read_utf16_str($fp,0x130, 0x338  - 0x130);
+    $type    = read_utf16_str($fp,0x338, 0x540  - 0x338);
+    $desc    = read_utf16_str($fp,0x540, 0xd40  - 0x540);
+    $samples = read_utf16_str($fp,0xd40, 0x1540 - 0xd40);
+
+    printf("词库名称：%s\n", $title);
+    printf("词库分类：%s\n", $type);
+    printf("词库简介：%s\n", $desc);
+    printf("词库示例：%s\n", $samples);
+
+    $dict2txt = $abs_path.'/'.basename($filename,'.scel').'.txt';
+    fseek($fp,$offset);
+    $j = 1;
+    while (ftell($fp) != $fsize) {
+        $word_count = read_uint16($fp);
+        $py_count   = read_uint16($fp) / 2;
+        for($i=0; $i<$py_count; $i++) {
+            fread($fp,2);
+        }
+        for($i=0; $i<$word_count; $i++) {
+            $word_len = read_uint16($fp);
+            $word_str = read_utf16_str($fp, -1, $word_len);
+            fread($fp,12); // simply ignore word frequence info
+            printf("[%d] => %s\n", $j, $word_str); $j++;
+            file_put_contents($dict2txt,$word_str."\r\n",FILE_APPEND);
+        }
+
+    }
+}
+
+function read_utf16_str($fp,$offset=-1,$length=2) {
+    if ($offset >= 0) fseek($fp,$offset);
+    return trim(iconv('UNICODE', 'UTF-8', fread($fp,$length)));
+}
+
+function read_uint16($fp) {
+    $r = unpack('v',fread($fp,2));
+    return $r[1];
+}

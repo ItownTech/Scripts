@@ -1,0 +1,21 @@
+#!/bin/sh
+
+cd `dirname $0`
+
+status=`curl -s --connect-timeout 3 -I "http://127.0.0.1/jiankong.php" | head -n 1 | awk '{print $2}'`
+
+if [ "$status" = "502" ]; then
+	alert="["`date +%F\ %T`"] php5-fpm restart"
+	echo $alert
+	/usr/bin/python ./mail.py 13641738806@139.com,15000834891@139.com my@lukin.cn \!\!\!Lukin\ VPS\ alert\!\!\! "$alert"
+	/etc/init.d/php5-fpm restart
+elif [ "$status" != "200" ]; then
+	alert="["`date +%F\ %T`"] nginx restart"
+	echo $alert
+	/usr/bin/python ./mail.py 13641738806@139.com,15000834891@139.com my@lukin.cn \!\!\!Lukin\ VPS\ alert\!\!\! "$alert"
+	/etc/init.d/nginx restart
+	/etc/init.d/php5-fpm restart
+else
+	echo "["`date +%F\ %T`"] nothing..."
+fi
+
