@@ -1,0 +1,10 @@
+#!/bin/sh
+
+[ "`whoami`" = root ] || exec sudo "$0" "$@"
+
+while read NAME
+do [ -a "$NAME" ] && rm -fr "$NAME"
+	echo "$NAME"
+done
+
+nohup /usr/libexec/locate.updatedb > /dev/null &
