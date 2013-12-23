@@ -1,9 +1,10 @@
-#!/bin/sh
+#!/bin/bash
 # file: /etc/ppp/ip-up
+export PATH="/bin:/sbin:/usr/sbin:/usr/bin"
 
 dscacheutil -flushcache
 
-route add 192.168.1.0/24 "${4}"
-route add 192.168.191.0/24 "${4}"
-route add 10.20.0.0/16 "${4}"
-route add 10.10.0.0/16 "${4}"
+route add 192.168.1.0/24 $4
+route add 192.168.191.0/24 $4
+route add 10.20.0.0/16 $4
+route add 10.10.0.0/16 $4
