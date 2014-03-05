@@ -1,13 +1,12 @@
 #!/bin/bash
-# 冬吴相对论自动上传脚本
-# */5 * * * 1-3 /home/lukin/bin/dongwuxiangduilun.sh
+
 # 当前目录
 cwd=$(cd "$(dirname "$0")"; pwd);
 cd $cwd
 
 # 定义访问的token
 limit_rate="10M"
-token="1010277&595255ba04ea404d44408f66055dff7d99dfe"
+token="1000577&595255ba04ea40444408a66055dff7d991fe"
 entoken=$(echo ${token} | sed 's/&/%26/')
 album_id="215922"
 categories="8"
@@ -33,11 +32,13 @@ curl -s -i "http://dongwu.21cbr.com/" | iconv -f gb2312 -t utf-8 -c | grep -E '<
 	node_num=$(expr ${line_num} % 3)
 	#echo $line
 	if [ "$node_num" = "1" ]; then
-		audio_name=$(echo $line | sed 's/冬吴相对论//' | sed 's/《//' | sed 's/》//' | sed 's/:/ - /')
+		audio_name=$(echo $line | sed 's/冬吴相对论//' | sed 's/《//' | sed 's/》//' | sed 's/:/ - /' | sed 's/\s//g')
 	elif [ "$node_num" = "2" ]; then
 		intro=$line
 	elif [ "$node_num" = "0" ]; then
 		down_url=$(echo $line | awk -F '"' '{print $2}')
+		file_isok=$(curl -s -I "${down_url}?v="$(date +'%s') | head -n 1 | grep -E 'HTTP\/1\.[0-9] 200 OK' | wc -l)
+		file_isok=$(echo $file_isok | sed 's/\s//g')
 		lock_file=${cwd}"/dwxdl_"${last_num}".lock"
 		# 检查回放中文名称是否准备好
 		name_isok=$(echo $audio_name | grep ${last_num} | wc -l)
@@ -49,7 +50,7 @@ curl -s -i "http://dongwu.21cbr.com/" | iconv -f gb2312 -t utf-8 -c | grep -E '<
 		echo down_url: $down_url
 		
 		# 声音文件不存在且中文名称已经准备好，可以下载
-		if [ ! -f "${lock_file}" ] && [ "$name_isok" = "1" ]; then
+		if [ ! -f "${lock_file}" ] && [ "$name_isok" = "1" ] && [ "$file_isok" = "1" ]; then
 			# 下载音频文件
 			wget -c "$down_url" -O "${audio_name}.mp3" --limit-rate ${limit_rate}
 			# 上传音频文件
@@ -68,10 +69,12 @@ curl -s -i "http://dongwu.21cbr.com/" | iconv -f gb2312 -t utf-8 -c | grep -E '<
 	        	sleep 1
 	            curl -s -i -H "Cookie: 1&remember_me=y; 1&_token=${token}; " "http://www.ximalaya.com/dtres/transcoding/process?id=${fileid}"
 	        done
+		
+		echo ${last_num_pk} > ${last_num_pk_file}
+		
 		fi
 		last_num=$(expr ${last_num} - 1)
 		
-		echo ${last_num_pk} > ${last_num_pk_file}
 		
 		# 删除文件
 		if [ -f "${audio_name}.mp3" ]; then
