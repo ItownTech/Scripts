@@ -1,0 +1,83 @@
+#!/bin/bash
+
+# 申请管理员权限
+[ "`whoami`" = root ] || exec sudo "$0" "$@"
+
+# 当前目录
+CWD=$(cd "$(dirname "$0")"; pwd);
+HOSTS_DIR="$HOME/.hosts"
+HOSTS_USER="$HOME/.bin/hosts.user"
+HOSTS_USER_SHA1="$HOSTS_DIR/hostsuser.sha1"
+HOSTS_INFO="$HOSTS_DIR/hostsinfo.json"
+HOSTS_SHA1="$HOSTS_DIR/hostsinfo.sha1"
+HOSTS_DATA="$HOSTS_DIR/hostslist.zip"
+# 创建hosts目录
+if [ ! -d "$HOSTS_DIR" ]; then
+	mkdir $HOSTS_DIR
+fi
+
+# 解析json
+parse_json(){
+	echo $1 | sed 's/.*"*'$2'"*:\([^,}]*\).*/\1/' | sed 's/[ "]//g'
+}
+
+show_log(){
+        STR="$*"
+        Time=$(date +'%F %T')
+        echo "[$Time] "$STR
+}
+
+# 下载hostinfo文件
+show_log "wget ftp://ftp.huhamhire.com/huhamhire-hosts/update/hostsinfo.json"
+$(which wget) -c -O $HOSTS_INFO -o "$HOSTS_DIR/hostsinfo.log" 'ftp://ftp.huhamhire.com/huhamhire-hosts/update/hostsinfo.json'
+
+# 检查是否需要更新
+show_log "check update"
+if [ -f "$HOSTS_USER_SHA1" ]; then
+	HOSTS_USER_SHA1_SRC=$(cat $HOSTS_USER_SHA1)
+else
+	HOSTS_USER_SHA1_SRC=""
+fi
+
+if [ -f "$HOSTS_SHA1" ]; then
+	HOSTS_SHA1_SRC=$(cat $HOSTS_SHA1)
+else
+	HOSTS_SHA1_SRC=""
+fi
+
+HOSTS_SHA1_CODE=$(parse_json "$(cat $HOSTS_INFO)" "sha1")
+HOSTS_USER_SHA1_CODE=$($(which shasum) $HOSTS_USER | awk '{print $1}')
+
+# 没有变化，退出
+if [ "$HOSTS_USER_SHA1_SRC" == "$HOSTS_USER_SHA1_CODE" ] && [ "$HOSTS_SHA1_SRC" == "$HOSTS_SHA1_CODE" ]; then
+	show_log "no update"
+	exit
+fi
+
+if [ "$HOSTS_SHA1_SRC" != "$HOSTS_SHA1_CODE" ]; then
+	# 下载新的数据包
+	show_log "wget ftp://ftp.huhamhire.com/huhamhire-hosts/update/hostslist.data"
+	$(which wget) -c -O $HOSTS_DATA -o "$HOSTS_DIR/hostslist.log" 'ftp://ftp.huhamhire.com/huhamhire-hosts/update/hostslist.data'	
+	# 获得数据库文件名
+	HOSTS_LISTDB="$HOSTS_DIR"/$($(which unzip) -l $HOSTS_DATA | grep -v 'hostslist.zip' | grep 'hostslist' | awk '{print $4}')
+	# 解压缩数据包
+	show_log "unzip $HOSTS_DATA"
+	$(which unzip) -o -d $HOSTS_DIR $HOSTS_DATA > /dev/null
+	# 导出数据
+	show_log "export SELECT ip,host FROM hosts_ipv4; > $HOSTS_DIR/hosts.src"
+	$(which sqlite3) -separator ' ' $HOSTS_LISTDB "SELECT ip,host FROM hosts_ipv4;" > $HOSTS_DIR/hosts.src
+fi
+
+# 合并hosts文件
+show_log "merge $HOSTS_USER > $HOSTS_DIR/hosts"
+cat $HOSTS_USER $HOSTS_DIR/hosts.src > $HOSTS_DIR/hosts
+
+# 覆盖/etc/hosts文件
+show_log "cp $HOSTS_DIR/hosts /etc/hosts"
+cp $HOSTS_DIR/hosts /etc/hosts
+
+# 写入新的SHA1
+echo $HOSTS_SHA1_CODE > $HOSTS_SHA1
+echo $HOSTS_USER_SHA1_CODE > $HOSTS_USER_SHA1
+
+show_log "/etc/hosts update ok!~"
